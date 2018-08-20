@@ -6,7 +6,6 @@ import { AsyncComponentProvider } from 'react-async-component';
 import asyncBootstrapper from 'react-async-bootstrapper';
 import { JobProvider } from 'react-jobs';
 
-
 import createStore from '../src/createStore';
 import Layout from '../src/Layout';
 
