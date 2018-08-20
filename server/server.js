@@ -5,7 +5,8 @@ import { renderToString } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom';
 import { Provider as ReduxProvider } from 'react-redux';
 import asyncBootstrapper from 'react-async-bootstrapper';
-import { AsyncComponentProvider, createAsyncContext } from 'react-async-component' // 👈
+import { AsyncComponentProvider, createAsyncContext } from 'react-async-component';
+import { JobProvider, createJobContext } from 'react-jobs';
 import serialize from 'serialize-javascript';
 
 import createStore, { initializeSession } from '../src/createStore';
@@ -13,7 +14,7 @@ import Layout from '../src/Layout';
 
 const app = express();
 
-const htmlTemplate = ({ appString, reduxState, asyncState }) => `
+const htmlTemplate = ({ appString, reduxState, asyncState, jobsState }) => `
   <!DOCTYPE html>
   <html>
     <head>
@@ -25,6 +26,7 @@ const htmlTemplate = ({ appString, reduxState, asyncState }) => `
       <script>
         window.REDUX_DATA = ${serialize(reduxState)}
         window.ASYNC_COMPONENTS_STATE = ${serialize(asyncState)}
+        window.JOBS_STATE = ${serialize(jobsState)}
       </script>
       <script src="bundle.js"></script>
     </body>
@@ -35,18 +37,21 @@ app.use(express.static(path.resolve(__dirname, '../dist')));
 
 app.get('/*', (req, res) => {
   const asyncContext = createAsyncContext();
-  const context = {};
+  const jobContext = createJobContext();
+  const routeContext = {};
   const store = createStore();
 
   store.dispatch(initializeSession());
 
   const App = (
     <AsyncComponentProvider asyncContext={asyncContext}>
-      <ReduxProvider store={store}>
-        <StaticRouter context={context} location={req.url}>
-          <Layout />
-        </StaticRouter>
-      </ReduxProvider>
+      <JobProvider jobContext={jobContext}>
+        <ReduxProvider store={store}>
+          <StaticRouter context={routeContext} location={req.url}>
+            <Layout />
+          </StaticRouter>
+        </ReduxProvider>
+      </JobProvider>
     </AsyncComponentProvider>
   );
 
@@ -54,9 +59,10 @@ app.get('/*', (req, res) => {
     const appString = renderToString(App);
     const reduxState = store.getState();
     const asyncState = asyncContext.getState();
+    const jobsState = jobContext.getState();
   
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(htmlTemplate({ appString, reduxState, asyncState }));
+    res.end(htmlTemplate({ appString, reduxState, asyncState, jobsState }));
   });
 
 });
